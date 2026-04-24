@@ -26,11 +26,33 @@ class Alpha():
         portfolio_df = pd.DataFrame(index=trade_range)\
             .reset_index()\
             .rename(columns={"index":"datetime"})
-        print(portfolio_df)
+        portfolio_df.loc[0, "capital"] = 10000
+        return portfolio_df
+
+
+    def compute_meta_info(self, trade_range):
+        for inst in self.insts:
+            df = pd.DataFrame(index=trade_range)
+            self.dfs[inst] = df.join(self.dfs[inst])
+            print(df)
+            print(self.dfs[inst])
+            input("see")
+
 
 
     def run_simulation(self):
         print("running backtest")
         date_range = pd.date_range(start=self.start, end=self.end, freq="D")
+        self.compute_meta_info(trade_range=date_range)
         portfolio_df = self.init_portfolio_settings(trade_range = date_range)
-        #print(date_range)
+        for i in portfolio_df.index:
+            date = portfolio_df.loc[i, "datetime"]
+
+            if i != 0:
+                #compute pnl
+                pass
+
+            alpha_scores = {}
+            #compute alpha signals
+
+            #compute positions and ...
