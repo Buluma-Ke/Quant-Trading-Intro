@@ -99,8 +99,9 @@ def get_ticker_dfs(start, end):
     return tickers, ticker_dfs
 
 
-
+from utils import Alpha
 period_start = datetime(2010, 1, 1, tzinfo=pytz.utc)
 period_end = datetime.now(pytz.utc)
-ticker, ticker_dfs = get_ticker_dfs(start=period_start, end=period_end)
-print(ticker_dfs)
+tickers, ticker_dfs = get_ticker_dfs(start=period_start, end=period_end)
+alpha = Alpha(insts=tickers, dfs=ticker_dfs, start=period_start, end=period_end)
+alpha.run_simulation()
