@@ -21,7 +21,16 @@ class Alpha():
         self.start = start
         self.end = end
     
+
+    def init_portfolio_settings(self, trade_range):
+        portfolio_df = pd.DataFrame(index=trade_range)\
+            .reset_index()\
+            .rename(columns={"index":"datetime"})
+        print(portfolio_df)
+
+
     def run_simulation(self):
         print("running backtest")
         date_range = pd.date_range(start=self.start, end=self.end, freq="D")
-        print(date_range)
+        portfolio_df = self.init_portfolio_settings(trade_range = date_range)
+        #print(date_range)
