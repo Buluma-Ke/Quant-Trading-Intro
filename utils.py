@@ -34,10 +34,11 @@ class Alpha():
         for inst in self.insts:
             df = pd.DataFrame(index=trade_range)
             self.dfs[inst] = df.join(self.dfs[inst])
+            count_complete_rows = self.dfs[inst].notna().all(axis=1).sum()
             print(df)
             print(self.dfs[inst])
+            print(count_complete_rows)
             input("see")
-
 
 
     def run_simulation(self):
