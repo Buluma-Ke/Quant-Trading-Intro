@@ -40,7 +40,10 @@ class Alpha():
             self.dfs[inst] =df.join(self.dfs[inst]).ffill().bfill()
             self.dfs[inst]["ret"] = -1 + self.dfs[inst]["close"]/self.dfs[inst]["close"].shift(1)
             sampled = self.dfs[inst]["close"] != self.dfs[inst]["close"].shift(1).bfill()
-            input(sampled)
+            eligible = sampled.rolling(5).apply(lambda x: int(np.any(x))).fillna(0)
+            self.dfs[inst]["eligible"] = eligible.astype(int) & (self.dfs[inst]["close"] > 0).astype(int)
+        
+        return
 
 
 
@@ -52,11 +55,20 @@ class Alpha():
         for i in portfolio_df.index:
             date = portfolio_df.loc[i, "datetime"]
 
+            eligibles = [inst for inst in self.insts if self.dfs[inst].loc[date, "eligible"]]
+            non_eligibles = [inst for inst in self.insts if inst not in eligibles]
+
             if i != 0:
                 #compute pnl
                 pass
 
+            day_data = self.dfs[self.insts[0]].loc[date]
+            print(f"Date: {date} | Close: {day_data['close']} | Eligible: {day_data['eligible']}")
+
             alpha_scores = {}
-            #compute alpha signals
+            import random
+            for inst in eligibles:
+                alpha_scores[inst] = random.uniform(0, 1)
+            input(alpha_scores)
 
             #compute positions and ...
