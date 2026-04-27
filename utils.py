@@ -1,4 +1,5 @@
 import lzma
+import pytz
 import dill as pickle
 
 def load_pickle(path):
@@ -33,12 +34,13 @@ class Alpha():
     def compute_meta_info(self, trade_range):
         for inst in self.insts:
             df = pd.DataFrame(index=trade_range)
-            self.dfs[inst] = df.join(self.dfs[inst])
-            count_complete_rows = self.dfs[inst].notna().all(axis=1).sum()
+            self.dfs[inst].index = self.dfs[inst].index.normalize()
+            trade_range = trade_range.normalize()
+            self.dfs[inst] =df.join(self.dfs[inst]).ffill().bfill()
             print(df)
             print(self.dfs[inst])
-            print(count_complete_rows)
             input("see")
+
 
 
     def run_simulation(self):
