@@ -1,5 +1,7 @@
 import lzma
 import pytz
+import pandas as pd
+import numpy as np
 import dill as pickle
 
 def load_pickle(path):
@@ -13,7 +15,6 @@ def save_pickle(path, obj):
         pickle.dump(obj, fp)
 
 
-import pandas as pd
 class Alpha():
 
     def __init__(self, insts, dfs, start, end):
@@ -37,9 +38,9 @@ class Alpha():
             self.dfs[inst].index = self.dfs[inst].index.normalize()
             trade_range = trade_range.normalize()
             self.dfs[inst] =df.join(self.dfs[inst]).ffill().bfill()
-            print(df)
-            print(self.dfs[inst])
-            input("see")
+            self.dfs[inst]["ret"] = -1 + self.dfs[inst]["close"]/self.dfs[inst]["close"].shift(1)
+            sampled = self.dfs[inst]["close"] != self.dfs[inst]["close"].shift(1).bfill()
+            input(sampled)
 
 
 
