@@ -62,13 +62,31 @@ class Alpha():
                 #compute pnl
                 pass
 
-            day_data = self.dfs[self.insts[0]].loc[date]
-            print(f"Date: {date} | Close: {day_data['close']} | Eligible: {day_data['eligible']}")
-
             alpha_scores = {}
             import random
             for inst in eligibles:
                 alpha_scores[inst] = random.uniform(0, 1)
-            input(alpha_scores)
+            alpha_scores = {k:v for k, v in sorted(alpha_scores.items(), key=lambda pair:pair[1])}
+            alpha_long = list(alpha_scores.keys())[-int(len(eligibles)/4):]
+            alpha_short = list(alpha_scores.keys())[:int(len(eligibles)/4)]
+            
+            for inst in non_eligibles:
+                portfolio_df.loc[i, "{} w".format(inst)] = 0
+                portfolio_df.loc[i, "{} units".format(inst)] = 0
 
-            #compute positions and ...
+            nominal_tot = 0
+            for inst in eligibles:
+                forecast = 1 if inst in alpha_long else (-1 if inst in alpha_short else 0)
+                dollar_allocation = portfolio_df.loc[i, "capital"] / (len(alpha_long) + len(alpha_short))
+                position = forecast * dollar_allocation / self.dfs[inst].loc[date, "close"]
+                portfolio_df.loc[i, inst + " units"] = position
+                nominal_tot += abs(position * self.dfs[inst].loc[date, "close"])
+            
+            for inst in eligibles:
+                units = portfolio_df.loc[i, inst + " units"]
+                nominal_inst = units * self.dfs[inst].loc[date, "close"]
+                inst_w = nominal_inst / nominal_tot
+                portfolio_df.loc[i, inst + " w"] = inst_w
+
+            portfolio_df.loc[i, "nominal"] = nominal_tot
+            portfolio_df.loc[i, "leverage"] = nominal_tot / portfolio_df.loc[i, "capital"]
