@@ -14,6 +14,23 @@ def save_pickle(path, obj):
     with lzma.open(path, "wb") as fp:
         pickle.dump(obj, fp)
 
+def get_pnl_stats(date, prev, portfolio_df, insts, idx, dfs):
+    day_pnl = 0
+    nominal_ret = 0
+    for inst in insts:
+        units = portfolio_df.loc[idx - 1, "{} units".format(inst)]
+        if units != 0:
+            delta = dfs[inst].loc[date, "close"] - dfs[inst].loc[prev, "close"]
+            inst_pnl = delta * units
+            day_pnl += inst_pnl
+            nominal_ret += portfolio_df.loc[idx - 1, "{} w".format(inst)] * dfs[inst].loc[date, "ret"]
+        capital_ret = nominal_ret * portfolio_df.loc[idx - 1, "leverage"]
+        portfolio_df.loc[idx, "capital"] = portfolio_df.loc[idx - 1, "capital"] + day_pnl
+        portfolio_df.loc[idx, "day_pnl"] = day_pnl
+        portfolio_df.loc[idx, "nominal_ret"] = nominal_ret
+        portfolio_df.loc[idx, "capital_ret"] = capital_ret
+        return day_pnl, capital_ret
+
 
 class Alpha():
 
@@ -59,8 +76,15 @@ class Alpha():
             non_eligibles = [inst for inst in self.insts if inst not in eligibles]
 
             if i != 0:
-                #compute pnl
-                pass
+                date_prev = portfolio_df.loc[i -1, "datetime"]
+                day_pnl, capital_ret = get_pnl_stats(
+                    date=date,
+                    prev=date_prev,
+                    portfolio_df=portfolio_df,
+                    insts=self.insts,
+                    idx=i,
+                    dfs=self.dfs
+                )
 
             alpha_scores = {}
             import random
@@ -90,3 +114,5 @@ class Alpha():
 
             portfolio_df.loc[i, "nominal"] = nominal_tot
             portfolio_df.loc[i, "leverage"] = nominal_tot / portfolio_df.loc[i, "capital"]
+            if i%100 ==0: print(portfolio_df.loc[i])
+        return portfolio_df
