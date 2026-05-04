@@ -20,49 +20,85 @@ class Alpha1():
         return portfolio_df
 
 
-    def compute_meta_info(self, trade_range):
-        '''
-        mean_12(
-            neg(
-                cszscre(
-                    mult(
-                        volume,
-                        div(
-                            minus(minus(close, low), minus(high, close)),
-                            minus(high, low)
-                        )
-                    )
-                )
-            )
-        )
+    # def compute_meta_info(self, trade_range):
+    #     '''
+    #     mean_12(
+    #         neg(
+    #             cszscre(
+    #                 mult(
+    #                     volume,
+    #                     div(
+    #                         minus(minus(close, low), minus(high, close)),
+    #                         minus(high, low)
+    #                     )
+    #                 )
+    #             )
+    #         )
+    #     )
         
-        '''
-        op4s = []
-        for inst in self.insts:
-            df = pd.DataFrame(index=trade_range)
+    #     '''
+    #     op4s = []
+    #     for inst in self.insts:
+    #         df = pd.DataFrame(index=trade_range)
 
-            inst_df = self.dfs[inst]
+    #         inst_df = self.dfs[inst]
+    #         op1 = inst_df.volume
+    #         op2 = (inst_df.close - inst_df.low) - (inst_df.high - inst_df.close)
+    #         op3 = inst_df.high - inst_df.close
+    #         op4 = op1 * op2 / op3
+
+    #         self.dfs[inst].index = self.dfs[inst].index.normalize()
+    #         inst_df.index = inst_df.index.normalize()
+    #         trade_range = trade_range.normalize()
+
+    #         # self.dfs[inst] =df.join(self.dfs[inst]).ffill().bfill()
+    #         # self.dfs[inst]["ret"] = -1 + self.dfs[inst]["close"]/self.dfs[inst]["close"].shift(1)
+
+    #         self.dfs[inst]["op4"] = op4
+    #         op4s.append(self.dfs[inst]["op4"])
+            
+    #         sampled = self.dfs[inst]["close"] != self.dfs[inst]["close"].shift(1).bfill()
+    #         eligible = sampled.rolling(5).apply(lambda x: int(np.any(x))).fillna(0)
+    #         self.dfs[inst]["eligible"] = eligible.astype(int) & (self.dfs[inst]["close"] > 0).astype(int)
+        
+    #     temp_df = pd.concat(op4s, axis=1)
+    #     input(temp_df)
+    #     return
+
+
+    def compute_meta_info(self, trade_range):
+        # Normalize the trade_range once outside the loop
+        trade_range = trade_range.normalize()
+        op4s = []
+
+        for inst in self.insts:
+            # 1. Reindex and Normalize to ensure alignment
+            inst_df = self.dfs[inst].copy()
+            inst_df.index = inst_df.index.normalize()
+            
+            # Join with trade_range to fill missing dates and ensure index match
+            inst_df = pd.DataFrame(index=trade_range).join(inst_df).ffill().bfill()
+
+            # 2. Calculate Returns (CRITICAL for utils.get_pnl_stats)
+            inst_df["ret"] = inst_df["close"].pct_change().fillna(0)
+
+            # 2. Fixed Math (Matching your docstring logic)
             op1 = inst_df.volume
             op2 = (inst_df.close - inst_df.low) - (inst_df.high - inst_df.close)
-            op3 = inst_df.high - inst_df.close
-            op4 = op1 * op2 / op3
-
-            self.dfs[inst].index = self.dfs[inst].index.normalize()
-            trade_range = trade_range.normalize()
-
-            self.dfs[inst] =df.join(self.dfs[inst]).ffill().bfill()
-            self.dfs[inst]["ret"] = -1 + self.dfs[inst]["close"]/self.dfs[inst]["close"].shift(1)
-
-            self.dfs[inst]["op4"] = op4
-            op4s.append(self.dfs[inst]["op4"])
+            op3 = (inst_df.high - inst_df.low).replace(0, np.nan) # Avoid div by zero
             
-            sampled = self.dfs[inst]["close"] != self.dfs[inst]["close"].shift(1).bfill()
+            inst_df["op4"] = op1 * op2 / op3
+            
+            # 3. Eligibility logic on the aligned dataframe
+            sampled = inst_df["close"] != inst_df["close"].shift(1).bfill()
             eligible = sampled.rolling(5).apply(lambda x: int(np.any(x))).fillna(0)
-            self.dfs[inst]["eligible"] = eligible.astype(int) & (self.dfs[inst]["close"] > 0).astype(int)
+            inst_df["eligible"] = (eligible.astype(int) & (inst_df["close"] > 0).astype(int))
+
+            # Update the main storage
+            self.dfs[inst] = inst_df
+            op4s.append(inst_df["op4"])
         
-        temp_df = pd.concat(op4s, axis=1)
-        input(temp_df)
-        return
+        return pd.concat(op4s, axis=1)
 
 
 
