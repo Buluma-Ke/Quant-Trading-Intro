@@ -1,38 +1,9 @@
-import lzma
-import pytz
 import pandas as pd
 import numpy as np
-import dill as pickle
-
-def load_pickle(path):
-    with lzma.open(path, "rb") as fp:
-        file = pickle.load(fp)
-    return file
-    
-
-def save_pickle(path, obj):
-    with lzma.open(path, "wb") as fp:
-        pickle.dump(obj, fp)
-
-def get_pnl_stats(date, prev, portfolio_df, insts, idx, dfs):
-    day_pnl = 0
-    nominal_ret = 0
-    for inst in insts:
-        units = portfolio_df.loc[idx - 1, "{} units".format(inst)]
-        if units != 0:
-            delta = dfs[inst].loc[date, "close"] - dfs[inst].loc[prev, "close"]
-            inst_pnl = delta * units
-            day_pnl += inst_pnl
-            nominal_ret += portfolio_df.loc[idx - 1, "{} w".format(inst)] * dfs[inst].loc[date, "ret"]
-        capital_ret = nominal_ret * portfolio_df.loc[idx - 1, "leverage"]
-        portfolio_df.loc[idx, "capital"] = portfolio_df.loc[idx - 1, "capital"] + day_pnl
-        portfolio_df.loc[idx, "day_pnl"] = day_pnl
-        portfolio_df.loc[idx, "nominal_ret"] = nominal_ret
-        portfolio_df.loc[idx, "capital_ret"] = capital_ret
-        return day_pnl, capital_ret
+from utils import get_pnl_stats
 
 
-class Alpha():
+class Alpha1():
 
     def __init__(self, insts, dfs, start, end):
         self.insts = insts
@@ -50,16 +21,47 @@ class Alpha():
 
 
     def compute_meta_info(self, trade_range):
+        '''
+        mean_12(
+            neg(
+                cszscre(
+                    mult(
+                        volume,
+                        div(
+                            minus(minus(close, low), minus(high, close)),
+                            minus(high, low)
+                        )
+                    )
+                )
+            )
+        )
+        
+        '''
+        op4s = []
         for inst in self.insts:
             df = pd.DataFrame(index=trade_range)
+
+            inst_df = self.dfs[inst]
+            op1 = inst_df.volume
+            op2 = (inst_df.close - inst_df.low) - (inst_df.high - inst_df.close)
+            op3 = inst_df.high - inst_df.close
+            op4 = op1 * op2 / op3
+
             self.dfs[inst].index = self.dfs[inst].index.normalize()
             trade_range = trade_range.normalize()
+
             self.dfs[inst] =df.join(self.dfs[inst]).ffill().bfill()
             self.dfs[inst]["ret"] = -1 + self.dfs[inst]["close"]/self.dfs[inst]["close"].shift(1)
+
+            self.dfs[inst]["op4"] = op4
+            op4s.append(self.dfs[inst]["op4"])
+            
             sampled = self.dfs[inst]["close"] != self.dfs[inst]["close"].shift(1).bfill()
             eligible = sampled.rolling(5).apply(lambda x: int(np.any(x))).fillna(0)
             self.dfs[inst]["eligible"] = eligible.astype(int) & (self.dfs[inst]["close"] > 0).astype(int)
         
+        temp_df = pd.concat(op4s, axis=1)
+        input(temp_df)
         return
 
 
@@ -115,5 +117,6 @@ class Alpha():
             portfolio_df.loc[i, "nominal"] = nominal_tot
             portfolio_df.loc[i, "leverage"] = nominal_tot / portfolio_df.loc[i, "capital"]
             if i%100 ==0: print(portfolio_df.loc[i])
+
         return portfolio_df
 
