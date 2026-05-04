@@ -97,8 +97,17 @@ class Alpha1():
             # Update the main storage
             self.dfs[inst] = inst_df
             op4s.append(inst_df["op4"])
-        
-        return pd.concat(op4s, axis=1)
+
+        temp_df = pd.concat(op4s, axis=1)
+        temp_df.columns = self.insts
+        temp_df = temp_df.replace(np.inf, 0).replace(np.inf, 0)
+        zscore = lambda x: (x - np.mean(x))/np.std(x)
+        cszscre_df = temp_df.ffill().apply(zscore, axis=1)
+        for inst in self.insts:
+            self.dfs[inst]["alpha"] = cszscre_df[inst].rolling(12).mean() * -1
+            self.dfs[inst]["eligible"] = self.dfs[inst]["eligible"] & (~pd.isna(self.dfs[inst]["alpha"]))
+
+        return #pd.concat(op4s, axis=1)
 
 
 
@@ -125,9 +134,9 @@ class Alpha1():
                 )
 
             alpha_scores = {}
-            import random
+
             for inst in eligibles:
-                alpha_scores[inst] = random.uniform(0, 1)
+                alpha_scores[inst] = self.dfs[inst].loc[date, "alpha"]
             alpha_scores = {k:v for k, v in sorted(alpha_scores.items(), key=lambda pair:pair[1])}
             alpha_long = list(alpha_scores.keys())[-int(len(eligibles)/4):]
             alpha_short = list(alpha_scores.keys())[:int(len(eligibles)/4)]
